@@ -28,6 +28,9 @@ def search(title, read, author):
     # description is the only thing missing from search result pages
     book_data['description'] = work.get('description').get('value')
 
+    if read:
+        print('woohoho read this book')
+
     upload_to_db(book_data)
 
 def parse_data(book_data, result):
@@ -52,12 +55,15 @@ def search_by_work(work):
     data = r.json()
     return data
 
+
+
 def upload_to_db(book_data):
     conn = psycopg2.connect('dbname=book_db user=claudia')
     cur = conn.cursor()
     cur.execute("""
                 INSERT INTO books (title, subtitle, author, genre, cover, description)
                 VALUES (%s, %s, %s, %s, %s, %s)
+                ON CONFLICT (title) DO NOTHING
                 """, list(book_data.values()))
     conn.commit()
     cur.close()
