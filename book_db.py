@@ -3,20 +3,23 @@ import click
 
 @click.command()
 @click.argument('title')
+@click.argument('author', required=False)
 @click.option('--read', default=False)
-def search(title, read):
+def search(title, read, author):
     book_data = {}
     
-    url = urlify_title(title)
+    url = urlify_title(title, author)
     response = requests.get(url).json()
     search_results = response.get('docs')
     try:
         first_result = search_results[0]
     except:
-        print('no results')
+        print('Nothing matches the search! Check manually on open library.')
         exit()
-
-    click.confirm('Is this accurate? ' + first_result.get('title'), abort=True)
+    
+    confirmation = (f"Is this accurate? {first_result.get('title')}"
+                    f" by {', '.join(str(x) for x in first_result.get('author_name'))}")
+    click.confirm(confirmation, abort=True)
 
     # adds author and cover id data (harder to get from actual work page)
     parse_data(book_data, first_result)
@@ -24,8 +27,8 @@ def search(title, read):
     # gets the unique key associated with the work for searching 
     work_key = first_result.get('key')
     work = search_by_work(work_key)
-
-    add_description(book_data, work)
+    book_data['description'] = work.get('description').get('value')
+    
     print(book_data)
 
 def parse_data(book_data, result):
@@ -35,11 +38,13 @@ def parse_data(book_data, result):
     book_data['cover_id'] = result.get('cover_i')
 
 
-def urlify_title(title):
-    base = "https://openlibrary.org/search.json?title="
-    # make sure title is lowercase and separated by +
+def urlify_title(title, author):
+    base = "https://openlibrary.org/search.json?"
     search_title = title.replace(" ", "+").lower()
-    url = base + search_title
+    url = base + 'title=' + search_title
+    if author:
+        search_author = author.replace(" ", "+").lower()
+        url = url + '&author=' + search_author
     return url
 
 def search_by_work(work):
@@ -47,11 +52,6 @@ def search_by_work(work):
     r = requests.get(url)
     data = r.json()
     return data
-
-def add_description(book_data, result):
-    # book_data['title'] = result.get('title')
-    # book_data['subtitle'] = result.get('subtitle')
-    book_data['description'] = result.get('description').get('value')
 
 if __name__ == '__main__':
     search()
